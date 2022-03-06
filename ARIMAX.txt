@@ -1,0 +1,530 @@
+##Our Working Directory
+setwd("D:/SAARC paper")
+getwd()
+##Required libraries
+library(readxl)
+library(imputeTS)
+library(dplyr)
+library(forecast)
+library(ggplot2)
+library(gridExtra)
+library(TSstudio)
+##Afghanistan
+Afg<-read_excel("SAARC.xlsx", sheet = "Afghanistan")
+head(Afg)
+Afgts<-ts(Afg$Cases,start=c(2020,2),frequency=365)
+p1<-autoplot(Afgts,col="green")+ylab("Confirmed cases")+theme_bw()+ggtitle("A: Afghanistan");p1
+##Cross-correlation
+c1<-Ccf(Afg$Cases,Afg$T2M_MAX, main="Afghanistan: Cases vs. Max. temperature");c1
+c2<-Ccf(Afg$Cases,Afg$T2M_MIN, main="Afghanistan: Cases vs. Min. temperature");c2
+c3<-Ccf(Afg$Cases,Afg$RH2M, main="Afghanistan: Cases vs. Relative Humidity");c3
+c4<-Ccf(Afg$Cases,Afg$PS, main="Afghanistan: Cases vs. Surface Pressure");c4
+c5<-Ccf(Afg$Cases,Afg$WS10M, main="Afghanistan: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Afg$Cases[Afg$Cases==0]<-NA
+head(Afg)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Afg$T2M_MAX),n=1)
+sp<-dplyr::lag((Afg$PS),n=28)
+min_temp<-dplyr::lag((Afg$T2M_MIN),n=1)
+afg<-data.frame(Afg$Cases,min_temp,Afg$T2M,max_temp,sp)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(afg))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(afg)),size = smp_size)
+train<-afg[1:smp_size,]
+test <-afg[smp_size+1:nrow(afg),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$Afg.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$Afg.T2M,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Afg.Cases,start=c(2020,2),frequency=365)
+casesafg<-na_locf(Cases)
+ts_info(casesafg)
+Casestest<-ts(test$Afg.Cases,start=c(2021,307),frequency=365)
+##Fitting ARIMAX
+m1<-auto.arima(casesafg, xreg=xreg)
+m1
+fc<-forecast(m1,nrow(test),xreg=xreg1)
+fc
+accuracy(fc,Casestest)
+f1<-autoplot(casesafg,series="Actual")+autolayer(fc, series="Forecast")+autolayer(fitted(fc), series="Fitted")+theme_bw();f1
+
+#Bangladesh
+Bd<-read_excel("SAARC.xlsx", sheet = "Bangladesh")
+head(Bd)
+Bdts<-ts(Bd$Cases,start=c(2020,9),frequency=365)
+p2<-autoplot(Bdts,col="purple")+ylab("")+theme_bw()+ggtitle("B: Bangladesh");p2
+##Cross-correlation
+c1<-Ccf(Bd$Cases,Bd$T2M_MAX, main="Bangladesh: Cases vs. Max. temperature");c1
+c2<-Ccf(Bd$Cases,Bd$T2M_MIN, main="Bangladesh: Cases vs. Min. temperature");c2
+c3<-Ccf(Bd$Cases,Bd$RH2M, main="Bangladesh: Cases vs. Relative Humidity");c3
+c4<-Ccf(Bd$Cases,Bd$PS, main="Bangladesh: Cases vs. Surface Pressure");c4
+c5<-Ccf(Bd$Cases,Bd$WS10M, main="Bangladesh: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Bd$Cases[Bd$Cases==0]<-NA
+head(Bd)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Bd$T2M_MAX),n=2)
+RH<-dplyr::lag((Bd$RH2M),n=2)
+sp<-dplyr::lag((Bd$PS),n=28)
+ws<-dplyr::lag((Bd$WS10M),n=12)
+min_temp<-dplyr::lag((Bd$T2M_MIN),n=2)
+bd<-data.frame(Bd$Cases,min_temp,Bd$T2M,max_temp,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(bd))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(bd)),size = smp_size)
+train<-bd[1:smp_size,]
+test <-bd[smp_size+1:nrow(bd),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$Bd.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$Bd.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Bd.Cases,start=c(2020,2),frequency=365)
+casesbd<-na_locf(Cases)
+ts_info(casesbd)
+Casestest<-ts(test$Bd.Cases,start=c(2021,295),frequency=365)
+##Fitting ARIMAX
+m2<-auto.arima(casesbd, xreg=xreg)
+m2
+fc2<-forecast(m2,nrow(test),xreg=xreg1)
+fc2
+accuracy(fc2,Casestest)
+f2<-autoplot(casesbd,series="Actual")+autolayer(fc2, series="Forecast")+autolayer(fitted(fc2), series="Fitted")+theme_bw();f2
+
+
+
+##Bhutan
+Bh<-read_excel("SAARC.xlsx", sheet = "Bhutan")
+head(Bh)
+Bhts<-ts(Bh$Cases,start=c(2020,1),frequency=365)
+p3<-autoplot(Bhts,col="blue")+ylab("Confirmed cases")+theme_bw()+ggtitle("C: Bhutan");p3
+##Cross-correlation
+c1<-Ccf(Bh$Cases,Bh$T2M_MAX, main="Bhutan: Cases vs. Max. temperature");c1
+c2<-Ccf(Bh$Cases,Bh$T2M_MIN, main="Bhutan: Cases vs. Min. temperature");c2
+c3<-Ccf(Bh$Cases,Bh$RH2M, main="Bhutan: Cases vs. Relative Humidity");c3
+c4<-Ccf(Bh$Cases,Bh$PS, main="Bhutan: Cases vs. Surface Pressure");c4
+c5<-Ccf(Bh$Cases,Bh$WS10M, main="Bhutan: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Bh$Cases[Bh$Cases==0]<-NA
+head(Bh)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Bh$T2M_MAX),n=10)
+RH<-dplyr::lag((Bh$RH2M),n=1)
+sp<-dplyr::lag((Bh$PS),n=11)
+ws<-dplyr::lag((Bd$WS10M),n=12)
+min_temp<-dplyr::lag((Bh$T2M_MIN),n=9)
+bh<-data.frame(Bh$Cases,min_temp,Bh$T2M,max_temp,sp,RH)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(bh))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(bh)),size = smp_size)
+train<-bh[1:smp_size,]
+test <-bh[smp_size+1:nrow(bh),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$Bh.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$Bh.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Bh.Cases,start=c(2020,2),frequency=365)
+casesbh<-na_locf(Cases)
+ts_info(casesbh)
+Casestest<-ts(test$Bh.Cases,start=c(2021,296),frequency=365)
+##Fitting ARIMAX
+m3<-auto.arima(casesbh, xreg=xreg)
+m3
+fc3<-forecast(m3,nrow(test),xreg=xreg1)
+fc3
+accuracy(fc3,Casestest)
+f3<-autoplot(casesbh,series="Actual")+autolayer(fc3, series="Forecast")+autolayer(fitted(fc3), series="Fitted")+theme_bw();f3
+
+
+##India
+In<-read_excel("SAARC.xlsx", sheet = "India")
+head(In)
+Ints<-ts(In$Cases,start=c(2020,1),frequency=365)
+p4<-autoplot(Ints,col="orange")+ylab("")+theme_bw()+ggtitle("D: India")+scale_y_continuous(labels = function(x) format(x, scientific = FALSE));p4
+##Cross-correlation
+c1<-Ccf(In$Cases,In$T2M_MAX, main="India: Cases vs. Max. temperature");c1
+c2<-Ccf(In$Cases,In$T2M_MIN, main="India: Cases vs. Min. temperature");c2
+c3<-Ccf(In$Cases,In$RH2M, main="India: Cases vs. Relative Humidity");c3
+c4<-Ccf(In$Cases,In$PS, main="India: Cases vs. Surface Pressure");c4
+c5<-Ccf(In$Cases,In$WS10M, main="India: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+In$Cases[In$Cases==0]<-NA
+head(In)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((In$T2M_MAX),n=11)
+RH<-dplyr::lag((In$RH2M),n=1)
+sp<-dplyr::lag((In$PS),n=9)
+ws<-dplyr::lag((In$WS10M),n=14)
+min_temp<-dplyr::lag((In$T2M_MIN),n=3)
+ind<-data.frame(In$Cases,min_temp,In$T2M,max_temp,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(ind))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(ind)),size = smp_size)
+train<-ind[1:smp_size,]
+test <-ind[smp_size+1:nrow(ind),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$In.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$In.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$In.Cases,start=c(2020,2),frequency=365)
+casesind<-na_locf(Cases)
+ts_info(casesind)
+Casestest<-ts(test$In.Cases,start=c(2021,330),frequency=365)
+##Fitting ARIMAX
+m4<-auto.arima(casesind, xreg=xreg,lambda=0.3)
+m4
+fc4<-forecast(m4,nrow(test),xreg=xreg1)
+fc4
+accuracy(fc4,Casestest)
+f4<-autoplot(casesind,series="Actual")+autolayer(fc4, series="Forecast")+autolayer(fitted(fc4), series="Fitted")+theme_bw()+scale_y_continuous(labels = function(x) format(x, scientific = FALSE));f4
+
+
+
+##Maldives
+Ma<-read_excel("SAARC.xlsx", sheet = "Maldives")
+head(Ma)
+Mats<-ts(Ma$Cases,start=c(2020,1),frequency=365)
+p5<-autoplot(Mats,col="turquoise")+ylab("Confirmed cases")+theme_bw()+ggtitle("E: Maldives");p5
+##Cross-correlation
+c1<-Ccf(Ma$Cases,Ma$T2M_MAX, main="Maldives: Cases vs. Max. temperature");c1
+c2<-Ccf(Ma$Cases,Ma$T2M_MIN, main="Maldives: Cases vs. Min. temperature");c2
+c3<-Ccf(Ma$Cases,Ma$RH2M, main="Maldives: Cases vs. Relative Humidity");c3
+c4<-Ccf(Ma$Cases,Ma$PS, main="Maldives: Cases vs. Surface Pressure");c4
+c5<-Ccf(Ma$Cases,Ma$WS10M, main="Maldives: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Ma$Cases[Ma$Cases==0]<-NA
+head(Ma)
+#ARIMAX Modeling
+##Lag variable
+RH<-dplyr::lag((Ma$RH2M),n=17)
+sp<-dplyr::lag((Ma$PS),n=28)
+ws<-dplyr::lag((Ma$WS10M),n=1)
+min_temp<-dplyr::lag((Ma$T2M_MIN),n=17)
+ma<-data.frame(Ma$Cases,min_temp,Ma$T2M,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(ma))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(ma)),size = smp_size)
+train<-ma[1:smp_size,]
+test <-ma[smp_size+1:nrow(ma),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$In.T2M,
+              Minimum_Temp=train$min_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$In.T2M,
+               Minimum_Temp=test$min_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Ma.Cases,start=c(2020,2),frequency=365)
+casesma<-na_locf(Cases)
+ts_info(casesma)
+Casestest<-ts(test$Ma.Cases,start=c(2021,294),frequency=365)
+##Fitting ARIMAX
+m5<-auto.arima(casesma, xreg=xreg)
+m5
+fc5<-forecast(m5,nrow(test),xreg=xreg1)
+fc5
+accuracy(fc5,Casestest)
+f5<-autoplot(casesma,series="Actual")+autolayer(fc5, series="Forecast")+autolayer(fitted(fc5), series="Fitted")+theme_bw();f5
+
+
+##Nepal
+Ne<-read_excel("SAARC.xlsx", sheet = "Nepal")
+head(Ne)
+Nets<-ts(Ne$Cases,start=c(2020,1),frequency=365)
+p6<-autoplot(Nets,col="gold")+ylab("")+theme_bw()+ggtitle("F: Nepal");p6
+##Cross-correlation
+c1<-Ccf(Ne$Cases,Ne$T2M_MAX, main="Nepal: Cases vs. Max. temperature");c1
+c2<-Ccf(Ne$Cases,Ne$T2M_MIN, main="Nepal: Cases vs. Min. temperature");c2
+c3<-Ccf(Ne$Cases,Ne$RH2M, main="Nepal: Cases vs. Relative Humidity");c3
+c4<-Ccf(Ne$Cases,Ne$PS, main="Nepal: Cases vs. Surface Pressure");c4
+c5<-Ccf(Ne$Cases,Ne$WS10M, main="Nepal: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Ne$Cases[Ne$Cases==0]<-NA
+head(Ne)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Ne$T2M_MAX),n=3)
+RH<-dplyr::lag((Ne$RH2M),n=1)
+sp<-dplyr::lag((Ne$PS),n=17)
+ws<-dplyr::lag((Ne$WS10M),n=28)
+min_temp<-dplyr::lag((Ne$T2M_MIN),n=1)
+ne<-data.frame(Ne$Cases,min_temp,Ne$T2M,max_temp,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(ne))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(ne)),size = smp_size)
+train<-ne[1:smp_size,]
+test <-ne[smp_size+1:nrow(ne),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$In.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$In.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Ne.Cases,start=c(2020,2),frequency=365)
+casesne<-na_locf(Cases)
+ts_info(casesne)
+Casestest<-ts(test$Ne.Cases,start=c(2021,336),frequency=365)
+##Fitting ARIMAX
+m6<-auto.arima(casesne, xreg=xreg)
+m6
+fc6<-forecast(m6,nrow(test),xreg=xreg1)
+fc6
+accuracy(fc6,Casestest)
+f6<-autoplot(casesne,series="Actual")+autolayer(fc6, series="Forecast")+autolayer(fitted(fc6), series="Fitted")+theme_bw();f6
+
+
+##Pakistan
+Pk<-read_excel("SAARC.xlsx", sheet = "Pakistan")
+head(Pk)
+Pkts<-ts(Pk$Cases,start=c(2020,1),frequency=365)
+p7<-autoplot(Pkts,col="dark red")+ylab("Confirmed cases")+theme_bw()+ggtitle("G: Pakistan");p7
+##Cross-correlation
+c1<-Ccf(Pk$Cases,Pk$T2M_MAX, main="Pakistan: Cases vs. Max. temperature");c1
+c2<-Ccf(Pk$Cases,Pk$T2M_MIN, main="Pakistan: Cases vs. Min. temperature");c2
+c3<-Ccf(Pk$Cases,Pk$RH2M, main="Pakistan: Cases vs. Relative Humidity");c3
+c4<-Ccf(Pk$Cases,Pk$PS, main="Pakistan: Cases vs. Surface Pressure");c4
+c5<-Ccf(Pk$Cases,Pk$WS10M, main="Pakistan: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Pk$Cases[Pk$Cases==0]<-NA
+head(Pk)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Pk$T2M_MAX),n=1)
+RH<-dplyr::lag((Pk$RH2M),n=7)
+sp<-dplyr::lag((Pk$PS),n=13)
+ws<-dplyr::lag((Pk$WS10M),n=24)
+min_temp<-dplyr::lag((Pk$T2M_MIN),n=1)
+pk<-data.frame(Pk$Cases,min_temp,Pk$T2M,max_temp,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(pk))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(pk)),size = smp_size)
+train<-pk[1:smp_size,]
+test <-pk[smp_size+1:nrow(pk),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$In.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$In.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Pk.Cases,start=c(2020,2),frequency=365)
+casespk<-na_locf(Cases)
+ts_info(casespk)
+Casestest<-ts(test$Pk.Cases,start=c(2021,306),frequency=365)
+##Fitting ARIMAX
+m7<-auto.arima(casespk, xreg=xreg)
+m7
+fc7<-forecast(m7,nrow(test),xreg=xreg1)
+fc7
+accuracy(fc7,Casestest)
+f7<-autoplot(casespk,series="Actual")+autolayer(fc7, series="Forecast")+autolayer(fitted(fc7), series="Fitted")+theme_bw();f7
+
+
+##Sri Lanka
+Sl<-read_excel("SAARC.xlsx", sheet = "Sri Lanka")
+head(Sl)
+Slts<-ts(Sl$Cases,start=c(2020,1),frequency=365)
+p8<-autoplot(Slts, col="yellow")+ylab("")+theme_bw()+ggtitle("H: Sri Lanka");p8
+##Cross-correlation
+c1<-Ccf(Sl$Cases,Sl$T2M_MAX, main="Sri Lanka: Cases vs. Max. temperature");c1
+c2<-Ccf(Sl$Cases,Sl$T2M_MIN, main="Sri Lanka: Cases vs. Min. temperature");c2
+c3<-Ccf(Sl$Cases,Sl$RH2M, main="Sri Lanka: Cases vs. Relative Humidity");c3
+c4<-Ccf(Sl$Cases,Sl$PS, main="Sri Lanka: Cases vs. Surface Pressure");c4
+c5<-Ccf(Sl$Cases,Sl$WS10M, main="Sri Lanka: Cases vs. Maximum Wind Speed");c5
+##Removing 0 values by NA
+Sl$Cases[Sl$Cases==0]<-NA
+head(Sl)
+#ARIMAX Modeling
+##Lag variable
+max_temp<-dplyr::lag((Sl$T2M_MAX),n=27)
+RH<-dplyr::lag((Sl$RH2M),n=8)
+sp<-dplyr::lag((Sl$PS),n=21)
+ws<-dplyr::lag((Sl$WS10M),n=1)
+min_temp<-dplyr::lag((Sl$T2M_MIN),n=25)
+sl<-data.frame(Sl$Cases,min_temp,Sl$T2M,max_temp,sp,RH,ws)
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(sl))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(sl)),size = smp_size)
+train<-sl[1:smp_size,]
+test <-sl[smp_size+1:nrow(sl),]
+test<-na.omit(test)
+##Create matrix of numeric predictors
+xreg <- cbind(Temp=train$In.T2M,
+              Minimum_Temp=train$min_temp,
+              Maximum_Temp=train$max_temp,
+              Surface_pressure=train$sp,
+              Wind_speed=train$ws,
+              Rl_hdty=train$RH
+)
+##Removing intercept
+xreg <- xreg[,-1]
+#creating the same for the test data
+xreg1 <- cbind(Temp=test$In.T2M,
+               Minimum_Temp=test$min_temp,
+               Maximum_Temp=test$max_temp,
+               Surface_pressure=test$sp,
+               Wind_speed=test$ws,
+               Rl_hdty=test$RH
+)
+# Remove intercept
+xreg1 <- xreg1[,-1]
+##Create a time series variable
+Cases<-ts(train$Sl.Cases,start=c(2020,2),frequency=365)
+casessl<-na_locf(Cases)
+ts_info(casessl)
+Casestest<-ts(test$Sl.Cases,start=c(2021,334),frequency=365)
+##Fitting ARIMAX
+m8<-auto.arima(casessl, xreg=xreg,lambda=0.3)
+m8
+fc8<-forecast(m8,nrow(test),xreg=xreg1)
+fc8
+accuracy(fc8,Casestest)
+f6<-autoplot(casesne,series="Actual")+autolayer(fc6, series="Forecast")+autolayer(fitted(fc6), series="Fitted")+theme_bw();f6
+##Combining Time Series plots
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,nrow=4,ncol=2)
+##Combining cross-correlation plots
+par(mfrow=c(4,2))
+c1<-Ccf(Afg$Cases,Afg$T2M_MAX, main="Afghanistan: Confirmed Cases vs. Max. temperature");c1
+c2<-Ccf(Bd$Cases,Bd$T2M_MAX, main="Bangladesh: Confirmed Cases vs. Max. temperature");c2
+c3<-Ccf(Bh$Cases,Bh$RH2M, main="Bhutan: Confirmed Cases vs. Relative Humidity");c3
+c4<-Ccf(In$Cases,In$WS10M, main="India: Confirmed Cases vs. Maximum Wind Speed");c4
+c5<-Ccf(Ma$Cases,Ma$RH2M, main="Maldives: Confirmed Cases vs. Relative Humidity");c5
+c6<-Ccf(Ne$Cases,Ne$PS, main="Nepal: Confirmed Cases vs. Surface Pressure");c6
+c7<-Ccf(Pk$Cases,Pk$RH2M, main="Pakistan: Confirmed Cases vs. Relative Humidity");c7
+c8<-Ccf(Sl$Cases,Sl$WS10M, main="Sri Lanka: Cases vs. Maximum Wind Speed");c8
