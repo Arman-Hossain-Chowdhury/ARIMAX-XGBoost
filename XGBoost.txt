@@ -1,0 +1,443 @@
+##Afghanistan
+setwd("D:/SAARC paper")
+getwd()
+##Required libraries
+library(readxl)
+library(imputeTS)
+library(dplyr)
+library(forecast)
+library(forecastxgb)
+library(ggplot2)
+library(gridExtra)
+library(TSstudio)
+library(readxl)
+##Afghanistan
+Afg<-read_excel("SAARC.xlsx", sheet = "Afghanistan")
+head(Afg)
+Afg$Cases[Afg$Cases==0]<-NA
+head(Afg)
+## Lag variable
+max_temp<-dplyr::lag((Afg$T2M_MAX),n=1)
+sp<-dplyr::lag((Afg$PS),n=28)
+min_temp<-dplyr::lag((Afg$T2M_MIN),n=1)
+afg<-data.frame(Afg$Cases,min_temp,Afg$T2M,max_temp,sp)
+#ARIMAX Modeling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(afg))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(afg)),size = smp_size)
+train<-afg[1:smp_size,]
+test <-afg[smp_size+1:nrow(afg),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Surface_pressure=train$sp)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Afg.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Surface_pressure=test$sp)
+x_test<-ts(x_test,start=c(2021,306),frequency=365)
+y_test<-test$Afg.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,306),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 10,
+           nfolds=10,
+           nrounds_method = "cv",
+           trend_method = "none")
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f1<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f1
+
+## Bangladesh
+BD<-read_excel("SAARC.xlsx", sheet = "Bangladesh")
+head(BD)
+BD$Cases[BD$Cases==0]<-NA
+head(BD)
+## Lag Variabe
+max_temp<-dplyr::lag((BD$T2M_MAX),n=2)
+RH<-dplyr::lag((BD$RH2M),n=2)
+sp<-dplyr::lag((BD$PS),n=28)
+ws<-dplyr::lag((BD$WS10M),n=12)
+min_temp<-dplyr::lag((BD$T2M_MIN),n=2)
+bd<-data.frame(BD$Cases,min_temp,BD$T2M,max_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(bd))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(bd)),size = smp_size)
+train<-bd[1:smp_size,]
+test <-bd[smp_size+1:nrow(bd),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$BD.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,294),frequency=365)
+y_test<-test$BD.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,294),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 1000,
+           nfolds=10,
+           nrounds_method = "cv",
+           trend_method = "none" )
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f2<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f2
+
+##Bhutan
+Btn<-read_excel("SAARC.xlsx", sheet = "Bhutan")
+head(Btn)
+Btn$Cases[Btn$Cases==0]<-NA
+head(Btn)
+## Lag Variable
+max_temp<-dplyr::lag((Btn$T2M_MAX),n=10)
+RH<-dplyr::lag((Btn$RH2M),n=1)
+sp<-dplyr::lag((Btn$PS),n=12)
+min_temp<-dplyr::lag((Btn$T2M_MIN),n=9)
+btn<-data.frame(Btn$Cases,min_temp,Btn$T2M,max_temp,sp,RH)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(btn))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(btn)),size = smp_size)
+train<-btn[1:smp_size,]
+test <-btn[smp_size+1:nrow(btn),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Btn.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp)
+x_test<-ts(x_test,start=c(2021,296),frequency=365)
+y_test<-test$Btn.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,296),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds =1000,
+           nfold=10,
+           nrounds_method = "cv",
+           trend_method = "none" )
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f3<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f3
+
+##India
+Ind<-read_excel("SAARC.xlsx", sheet = "India")
+head(Ind)
+Ind$Cases[Ind$Cases==0]<-NA
+head(Ind)
+##Lag Variable
+max_temp<-dplyr::lag((Ind$T2M_MAX),n=11)
+RH<-dplyr::lag((Ind$RH2M),n=1)
+sp<-dplyr::lag((Ind$PS),n=9)
+ws<-dplyr::lag((Ind$WS10M),n=14)
+min_temp<-dplyr::lag((Ind$T2M_MIN),n=3)
+ind<-data.frame(Ind$Cases,min_temp,Ind$T2M,max_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(ind))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(ind)),size = smp_size)
+train<-ind[1:smp_size,]
+test <-ind[smp_size+1:nrow(ind),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Ind.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,330),frequency=365)
+y_test<-test$Ind.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,330),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 20,
+           nfold=10,
+           nrounds_method = "cv",
+           trend_method = "none")
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f4<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f4
+
+## Maldives
+Mld<-read_excel("SAARC.xlsx", sheet = "Maldives")
+head(Mld)
+Mld$Cases[Mld$Cases==0]<-NA
+head(Mld)
+## Lag Variable
+RH<-dplyr::lag((Mld$RH2M),n=17)
+sp<-dplyr::lag((Mld$PS),n=28)
+ws<-dplyr::lag((Mld$WS10M),n=1)
+min_temp<-dplyr::lag((Mld$T2M_MIN),n=3)
+mld<-data.frame(Mld$Cases,min_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(mld))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(mld)),size = smp_size)
+train<-mld[1:smp_size,]
+test <-mld[smp_size+1:nrow(mld),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Mld.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,294),frequency=365)
+y_test<-test$Mld.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,294),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 100,
+           nfold=20,
+           nrounds_method = "cv",
+           trend_method = "none" )
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f5<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f5
+
+## Nepal
+Npl<-read_excel("SAARC.xlsx", sheet = "Nepal")
+head(Npl)
+Npl$Cases[Npl$Cases==0]<-NA
+head(Npl)
+##Lag Variable
+max_temp<-dplyr::lag((Npl$T2M_MAX),n=3)
+RH<-dplyr::lag((Npl$RH2M),n=1)
+sp<-dplyr::lag((Npl$PS),n=17)
+ws<-dplyr::lag((Npl$WS10M),n=28)
+min_temp<-dplyr::lag((Npl$T2M_MIN),n=1)
+npl<-data.frame(Npl$Cases,min_temp,Npl$T2M,max_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(Npl))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(npl)),size = smp_size)
+train<-npl[1:smp_size,]
+test <-npl[smp_size+1:nrow(npl),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Npl.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,335),frequency=365)
+y_test<-test$Npl.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,335),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 1000,
+           nfold=20,
+           nrounds_method = "cv",
+           trend_method = "none" )
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f6<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f6
+
+## Pakistan
+Pak<-read_excel("SAARC.xlsx", sheet = "Pakistan")
+head(Pak)
+Pak$Cases[Pak$Cases==0]<-NA
+head(Pak)
+##Lag Variable
+max_temp<-dplyr::lag((Pak$T2M_MAX),n=1)
+RH<-dplyr::lag((Pak$RH2M),n=7)
+sp<-dplyr::lag((Pak$PS),n=13)
+ws<-dplyr::lag((Pak$WS10M),n=24)
+min_temp<-dplyr::lag((Pak$T2M_MIN),n=1)
+pak<-data.frame(Pak$Cases,min_temp,Pak$T2M,max_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(pak))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(pak)),size = smp_size)
+train<-pak[1:smp_size,]
+test <-pak[smp_size+1:nrow(pak),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$Pak.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,305),frequency=365)
+y_test<-test$Pak.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,305),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 1000,
+           nfold=20,
+           nrounds_method = "cv",
+           trend_method = "none" )
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f7<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f7
+
+## Ski Lanka
+SLn<-read_excel("SAARC.xlsx", sheet = "Sri Lanka")
+head(SLn)
+SLn$Cases[SLn$Cases==0]<-NA
+head(SLn)
+##Lag Variable
+max_temp<-dplyr::lag((SLn$T2M_MAX),n=27)
+RH<-dplyr::lag((SLn$RH2M),n=8)
+sp<-dplyr::lag((SLn$PS),n=21)
+ws<-dplyr::lag((SLn$WS10M),n=1)
+min_temp<-dplyr::lag((SLn$T2M_MIN),n=25)
+sLn<-data.frame(SLn$Cases,min_temp,SLn$T2M,max_temp,sp,RH,ws)
+#ARIMAX Modelling
+## 95% of the sample size
+smp_size<-floor(0.95 * nrow(SLn))
+print(smp_size)
+## set the seed to make partition reproducible
+set.seed(123)
+train_ind <-sample(seq_len(nrow(sLn)),size = smp_size)
+train<-sLn[1:smp_size,]
+test <-sLn[smp_size+1:nrow(sLn),]
+test<-na.omit(test)
+x_train<-data.frame(Minimum_Temp=train$min_temp,
+                    Maximum_Temp=train$max_temp,
+                    Relative_Humidity=train$RH,
+                    Surface_pressure=train$sp,
+                    Maximum_Wind_speed=train$ws)
+x_train<-ts(x_train,start=c(2020,1),frequency=365)
+y_train<-ts(train$SLn.Cases,start=c(2020,1),frequency=365)
+ts_info(x_train)
+y_train<-na_locf(y_train)
+x_test<-data.frame(Minimum_Temp=test$min_temp,
+                   Maximum_Temp=test$max_temp,
+                   Relative_Humidity=test$RH,
+                   Surface_pressure=test$sp,
+                   Maximum_Wind_speed=test$ws)
+x_test<-ts(x_test,start=c(2021,333),frequency=365)
+y_test<-test$SLn.Cases
+ts_info(x_test)
+y_test<-ts(y_test,start=c(2021,333),frequency=365)
+xgb<-xgbar(y_train, xreg =x_train,
+           nrounds = 100,
+           nfold=20,
+           nrounds_method = "cv",
+           trend_method = "none" ,lamda=1)
+xgb
+fc<-forecast(xgb, nrow(test),xreg =x_test);fc
+accuracy(fc,y_test)
+f8<-autoplot(y_train,series="Actual")+
+  autolayer(fc, series="Forecast")+
+  autolayer(fitted(fc), series="Fitted")+
+  theme_bw()
+f8
+
+##Bar graph of the MAPE values of test sets
+Country<-c("Afghanistan","Bangladesh","Bhutan","India","Maldives","Nepal","Pakistan","Sri Lanka","Afghanistan","Bangladesh","Bhutan","India","Maldives","Nepal","Pakistan","Sri Lanka")
+Model<-c("ARIMAX","ARIMAX","ARIMAX","ARIMAX","ARIMAX","ARIMAX","ARIMAX","ARIMAX","XGBoost","XGBoost","XGBoost","XGBoost","XGBoost","XGBoost","XGBoost","XGBoost")
+MAPE<-c(70.97,76.55,92.27,81.52,64.10,65.52,69.01,26.07,80.93,60.14,86.05,49.57,69.81,64.12,70.47,28.22)
+Errorvalue<-data.frame(Country,Model,MAPE)
+fig<-ggplot(Errorvalue,aes(x=Country,y=MAPE,fill=Model))+
+  geom_bar(stat="identity",position = "dodge")+
+  scale_fill_manual(values = c("ARIMAX" = "red",
+                               "XGBoost" = "dark red"))+theme_set(theme(legend.position =c(0.9,0.9)))
+fig
